@@ -303,11 +303,11 @@ with col2:
 st.markdown("---")
 col1, col2, col3 = st.columns(3)
 with col2:
-    stop_monitoring = st.button("Stop Monitoring", type="secondary", width='stretch')
+    stop_monitoring = st.button("Stop Monitoring", type="primary", width='stretch')
     if stop_monitoring:
         stop_mqtt_client()
         st.warning("Monitoring stopped!")
-        st.rerun()
+        st.stop()
 
 # Auto-refresh when monitoring is active
 if st.session_state.monitoring_active:
