@@ -278,7 +278,7 @@ with col1:
             fig_env.update_layout(title="Environmental Sensors Over Time", xaxis_title="Time", height=400)
             fig_env.update_yaxes(title_text="Temp (°C) / Humidity (%)", secondary_y=False)
             fig_env.update_yaxes(title_text="Moisture (%) / Light (lux)", secondary_y=True)
-            st.plotly_chart(fig_env, use_container_width=True)
+            st.plotly_chart(fig_env, width='stretch')
         else:
             st.info("Collecting sensor data... Graph will appear shortly.")
     except Exception as e:
@@ -293,7 +293,7 @@ with col2:
             fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_p'], name='Phosphorus', line=dict(color='red')))
             fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_k'], name='Potassium', line=dict(color='green')))
             fig_npk.update_layout(title="NPK Levels Over Time", xaxis_title="Time", yaxis_title="mg/kg", height=400)
-            st.plotly_chart(fig_npk, use_container_width=True)
+            st.plotly_chart(fig_npk, width='stretch')
         else:
             st.info("Collecting sensor data... Graph will appear shortly.")
     except Exception as e:
