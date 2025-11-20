@@ -1,28 +1,115 @@
 import streamlit as st
-from data_generator import save_data
-import time
-import threading
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import paho.mqtt.client as mqtt
+import json
+import ssl
+from datetime import datetime
+import time
 
-monitoring_active = False
+# Import configuration
+from config import *
 
+# Global variable to store latest sensor data
+latest_sensor_data = None
+
+# Initialize session state
+if 'mqtt_client' not in st.session_state:
+    st.session_state.mqtt_client = None
+if 'monitoring_active' not in st.session_state:
+    st.session_state.monitoring_active = False
+
+# MQTT Callbacks
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        st.session_state.mqtt_connected = True
+        client.subscribe(TOPIC_SENSOR)
+        print("Connected to HiveMQ Cloud and subscribed to topics")
+    else:
+        st.session_state.mqtt_connected = False
+        print(f"Connection failed with code {rc}")
+
+def on_message(client, userdata, msg):
+    global latest_sensor_data
+    try:
+        data = json.loads(msg.payload.decode())
+        # Convert to your CSV format
+        latest_sensor_data = {
+            "timestamp": datetime.now(),
+            "temperature°C": data.get("temperature"),
+            "humidity %": data.get("humidity"),
+            "soil_moisture%": data.get("moisture"),
+            "light_intensitylux": data.get("light"),
+            "npk_n": data.get("nitrogen"),
+            "npk_p": data.get("phosphorus"),
+            "npk_k": data.get("potassium"),
+            "irrigation_needed": data.get("irrigation_prediction"),
+            "plant_health": data.get("plant_health_prediction"),
+            "pump_status": "ON" if data.get("irrigation_prediction") == 1 else "OFF"
+        }
+        
+        # Save to CSV
+        save_to_csv(latest_sensor_data)
+        
+    except Exception as e:
+        print(f"Error processing MQTT message: {e}")
+
+def save_to_csv(data):
+    """Save sensor data to CSV file"""
+    try:
+        df = pd.read_csv(CSV_FILE)
+    except:
+        df = pd.DataFrame(columns=[
+            "timestamp", "temperature°C", "humidity %", "soil_moisture%",
+            "light_intensitylux", "npk_n", "npk_p", "npk_k",
+            "irrigation_needed", "plant_health", "pump_status"
+        ])
+    
+    df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+    df.to_csv(CSV_FILE, index=False)
+
+def start_mqtt_client():
+    """Initialize and start MQTT client"""
+    client = mqtt.Client()
+    client.username_pw_set(USERNAME, PASSWORD)
+    client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2)
+    
+    client.on_connect = on_connect
+    client.on_message = on_message
+    
+    client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
+    client.loop_start()
+    return client
+
+def stop_mqtt_client():
+    """Stop MQTT client"""
+    if st.session_state.mqtt_client:
+        st.session_state.mqtt_client.loop_stop()
+        st.session_state.mqtt_client.disconnect()
+        st.session_state.mqtt_client = None
+    st.session_state.monitoring_active = False
+
+# Streamlit App Configuration
 st.set_page_config(
-    page_title="AgriEdge",
+    page_title="AgriEdge - IoT Agriculture Monitor",
     page_icon="🌱",
     layout="wide"
 )
 
-def generate_continuous_data():
-    global monitoring_active
-    monitoring_active = True
-    while monitoring_active:
-        save_data()
-        time.sleep(2)
+# Custom CSS
+st.markdown("""
+<style>
+    .stButton button {height: 50px;}
+    .stSuccess {height: 48px;}
+    .status-box {border-radius: 10px; padding: 10px;}
+</style>
+""", unsafe_allow_html=True)
 
-st.image("./assets/header1.jpg", use_container_width =True)
+# Header Section
+st.image("./assets/header1.jpg", use_container_width=True)
 
+# Configuration Section
 st.info("**Select your soil type and crop stage, then click 'Start Monitoring' to begin.**")
 
 col1, col2, col3 = st.columns(3)
@@ -30,25 +117,18 @@ col1, col2, col3 = st.columns(3)
 with col1:
     soil_type = st.selectbox(
         "**Soil Type**",
-        ['Clay', 'Sandy', 'Red', 'Loam', 'Black', 'Alluvial', 'Chalky'],
+        SOIL_TYPES,
         help="Select the type of soil in your farm"
     )
 
 with col2:
     crop_stage = st.selectbox(
         "**Crop Stage**",
-        ['Flowering', 'Seedling', 'Vegetative Growth', 'Root/Tuber Development',
-         'Germination', 'Pollination', 'Fruit/Grain/Bulb Formation', 'Maturation', 'Harvest'],
+        CROP_STAGES,
         help="Select the current growth stage of your crop"
     )
 
 with col3:
-
-    st.markdown("""<style>
-                .stButton button {height: 50px;}
-                .stSuccess {height: 48px;}
-                </style>""", unsafe_allow_html=True)
-
     btn_col, msg_col = st.columns([1, 2])
     
     with btn_col:
@@ -59,15 +139,27 @@ with col3:
         )
     
     with msg_col:
-        if start_monitoring:
-            st.success(f"Monitoring started!")
-            thread = threading.Thread(target=generate_continuous_data, daemon=True)
-            thread.start()
+        if start_monitoring and not st.session_state.monitoring_active:
+            st.session_state.mqtt_client = start_mqtt_client()
+            st.session_state.monitoring_active = True
+            st.success("Monitoring started! Connecting to Raspberry Pi...")
+        
+        if st.session_state.monitoring_active:
+            st.success("✅ Live monitoring active")
 
+# Real-time Sensor Data Section
 st.markdown("---")
 st.header("Real-time Sensor Data")
-st.markdown("**Last Updated:** —")
 
+# Last updated timestamp
+if latest_sensor_data:
+    last_updated = latest_sensor_data['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
+else:
+    last_updated = "—"
+
+st.markdown(f"**Last Updated:** {last_updated}")
+
+# Sensor Data Tiles
 # Row 1: Environmental Sensors
 col1, col2, col3 = st.columns(3)
 
@@ -75,89 +167,129 @@ with col1:
     st.subheader("🌡️ Temperature & Humidity")
     col_a, col_b = st.columns([1, 2])
     with col_a:
-        st.metric("Temperature", "—", "°C")
+        temp_val = latest_sensor_data['temperature°C'] if latest_sensor_data else "—"
+        st.metric("Temperature", temp_val, "°C")
     with col_b:
-        st.metric("Humidity", "—", "%")
+        humid_val = latest_sensor_data['humidity %'] if latest_sensor_data else "—"
+        st.metric("Humidity", humid_val, "%")
 
 with col2:
     st.subheader("💧 Soil Moisture")
-    st.metric("Moisture Level", "—", "%")
+    moisture_val = latest_sensor_data['soil_moisture%'] if latest_sensor_data else "—"
+    st.metric("Moisture Level", moisture_val, "%")
 
 with col3:
     st.subheader("☀️ Light Intensity")
-    st.metric("Light", "—", "lux")
+    light_val = latest_sensor_data['light_intensitylux'] if latest_sensor_data else "—"
+    st.metric("Light", light_val, "lux")
 
 # Row 2: NPK Values
 st.subheader("🧪 Soil Nutrients (NPK)")
 npk_col1, npk_col2, npk_col3 = st.columns(3)
 
 with npk_col1:
-    st.metric("Nitrogen (N)", "—", "mg/kg")
-with npk_col2:
-    st.metric("Phosphorus (P)", "—", "mg/kg")
-with npk_col3:
-    st.metric("Potassium (K)", "—", "mg/kg")
+    n_val = latest_sensor_data['npk_n'] if latest_sensor_data else "—"
+    st.metric("Nitrogen (N)", n_val, "mg/kg")
 
-# Row 3: Status Indicators
+with npk_col2:
+    p_val = latest_sensor_data['npk_p'] if latest_sensor_data else "—"
+    st.metric("Phosphorus (P)", p_val, "mg/kg")
+
+with npk_col3:
+    k_val = latest_sensor_data['npk_k'] if latest_sensor_data else "—"
+    st.metric("Potassium (K)", k_val, "mg/kg")
+
+# Row 3: Status Indicators with colors
 st.subheader("🔧 System Status")
 status_col1, status_col2, status_col3 = st.columns(3)
 
 with status_col1:
-    # Irrigation Needed
     container = st.container(border=True)
     container.markdown("**🔄 Irrigation Needed**")
-    container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
+    if latest_sensor_data:
+        irrigation_val = latest_sensor_data['irrigation_needed']
+        color = "red" if irrigation_val == 1 else "green"
+        text = "YES" if irrigation_val == 1 else "NO"
+        container.markdown(f"<h3 style='color: {color};'>{text}</h3>", unsafe_allow_html=True)
+    else:
+        container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
 
 with status_col2:
-    # Plant Health
     container = st.container(border=True)
     container.markdown("**🌱 Plant Health**")
-    container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
+    if latest_sensor_data:
+        health = latest_sensor_data['plant_health']
+        if health == "healthy":
+            color = "green"
+        elif health == "stressed":
+            color = "orange"
+        else:
+            color = "red"
+        container.markdown(f"<h3 style='color: {color}; text-transform: capitalize;'>{health}</h3>", unsafe_allow_html=True)
+    else:
+        container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
 
 with status_col3:
-    # Pump Status
     container = st.container(border=True)
     container.markdown("**🚰 Pump Status**")
-    container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
+    if latest_sensor_data:
+        pump_status = latest_sensor_data['pump_status']
+        color = "green" if pump_status == "ON" else "red"
+        container.markdown(f"<h3 style='color: {color};'>{pump_status}</h3>", unsafe_allow_html=True)
+    else:
+        container.markdown("<h3 style='color: gray;'>—</h3>", unsafe_allow_html=True)
 
+# Real-time Graphs Section
 st.markdown("---")
 st.header("Real-time Monitoring")
 
-# Create two tabs for the graphs
+# Create two columns for the graphs
 col1, col2 = st.columns(2)
 
 with col1:
     try:
-        df = pd.read_csv('sensor_data.csv')
-        fig_env = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['temperature°C'], name='Temperature', line=dict(color='red')), secondary_y=False)
-        fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['humidity %'], name='Humidity', line=dict(color='blue')), secondary_y=False)
-        fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['soil_moisture%'], name='Soil Moisture', line=dict(color='brown')), secondary_y=True)
-        fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['light_intensitylux'], name='Light', line=dict(color='orange')), secondary_y=True)
-        fig_env.update_layout(title="Environmental Sensors Over Time", xaxis_title="Time")
-        fig_env.update_yaxes(title_text="Temp (°C) / Humidity (%)", secondary_y=False)
-        fig_env.update_yaxes(title_text="Moisture (%) / Light (lux)", secondary_y=True)
-        st.plotly_chart(fig_env, use_container_width=True)
-    except:
+        df = pd.read_csv(CSV_FILE)
+        if not df.empty:
+            fig_env = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['temperature°C'], name='Temperature', line=dict(color='red')), secondary_y=False)
+            fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['humidity %'], name='Humidity', line=dict(color='blue')), secondary_y=False)
+            fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['soil_moisture%'], name='Soil Moisture', line=dict(color='brown')), secondary_y=True)
+            fig_env.add_trace(go.Scatter(x=df['timestamp'], y=df['light_intensitylux'], name='Light', line=dict(color='orange')), secondary_y=True)
+            fig_env.update_layout(title="Environmental Sensors Over Time", xaxis_title="Time", height=400)
+            fig_env.update_yaxes(title_text="Temp (°C) / Humidity (%)", secondary_y=False)
+            fig_env.update_yaxes(title_text="Moisture (%) / Light (lux)", secondary_y=True)
+            st.plotly_chart(fig_env, use_container_width=True)
+        else:
+            st.info("No data available yet. Data will appear after monitoring starts.")
+    except Exception as e:
         st.info("No data available yet. Data will appear after monitoring starts.")
 
 with col2:
     try:
-        df = pd.read_csv('sensor_data.csv')
-        fig_npk = go.Figure()
-        fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_n'], name='Nitrogen', line=dict(color='blue')))
-        fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_p'], name='Phosphorus', line=dict(color='red')))
-        fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_k'], name='Potassium', line=dict(color='green')))
-        fig_npk.update_layout(title="NPK Levels Over Time", xaxis_title="Time", yaxis_title="mg/kg")
-        st.plotly_chart(fig_npk, use_container_width=True)
-    except:
+        df = pd.read_csv(CSV_FILE)
+        if not df.empty:
+            fig_npk = go.Figure()
+            fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_n'], name='Nitrogen', line=dict(color='blue')))
+            fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_p'], name='Phosphorus', line=dict(color='red')))
+            fig_npk.add_trace(go.Scatter(x=df['timestamp'], y=df['npk_k'], name='Potassium', line=dict(color='green')))
+            fig_npk.update_layout(title="NPK Levels Over Time", xaxis_title="Time", yaxis_title="mg/kg", height=400)
+            st.plotly_chart(fig_npk, use_container_width=True)
+        else:
+            st.info("No data available yet. Data will appear after monitoring starts.")
+    except Exception as e:
         st.info("No data available yet. Data will appear after monitoring starts.")
 
+# Stop Monitoring Section
 st.markdown("---")
 col1, col2, col3 = st.columns(3)
-st.markdown("---")
 with col2:
-    stop_monitoring = st.button("Stop Monitoring", type="primary", use_container_width=True)
+    stop_monitoring = st.button("Stop Monitoring", type="secondary", use_container_width=True)
     if stop_monitoring:
-        monitoring_active = False
+        stop_mqtt_client()
         st.warning("Monitoring stopped!")
+        st.rerun()
+
+# Auto-refresh when monitoring is active
+if st.session_state.monitoring_active:
+    time.sleep(REFRESH_INTERVAL)
+    st.rerun()
