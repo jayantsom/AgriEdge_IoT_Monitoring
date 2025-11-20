@@ -9,6 +9,7 @@ TOPIC_ADVICE = "agriedge/advice"
 # App Configuration
 CSV_FILE = "sensor_data.csv"
 REFRESH_INTERVAL = 5  # seconds
+MAX_DATA_POINTS = 10000  # Keep only last 10000 readings to save space
 
 # Soil Types and Crop Stages
 SOIL_TYPES = ['Clay', 'Sandy', 'Red', 'Loam', 'Black', 'Alluvial', 'Chalky']
