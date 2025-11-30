@@ -75,75 +75,113 @@ class Dashboard:
         return False
     
     def render_sidebar(self):
-        """Render sidebar with page navigation"""
+        """Render sidebar with page navigation only"""
         with st.sidebar:
             st.title("🌱 AgriEdge")
             st.markdown("---")
             
-            # Page Navigation
+            # Page Navigation with descriptions
             st.subheader("📄 Navigation")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📊 Dashboard", use_container_width=True):
-                    st.rerun()  # Already on dashboard
-            with col2:
-                if st.button("👁️ CV Analysis", use_container_width=True):
-                    st.switch_page("pages/2_👁️_Computer_Vision.py")
+            # Dashboard Page
+            if st.button("📊 **Live Dashboard**", use_container_width=True):
+                st.rerun()  # Already on dashboard
             
+            st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
             
-            # Configuration Section
-            st.subheader("⚙️ Farm Configuration")
+            # Computer Vision Page
+            if st.button("👁️ **Computer Vision**", use_container_width=True):
+                st.switch_page("pages/2_👁️_Computer_Vision.py")
             
+            st.caption("Plant disease detection & image analysis")
+            st.markdown("---")
+            
+            st.caption("Smart Farming AI System")
+    
+    def render_configuration_section(self):
+        """Render configuration section on main dashboard"""
+        st.info("**Select your soil type and crop stage, then click 'Start Monitoring' to begin.**")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
             st.session_state.soil_type = st.selectbox(
                 "**Soil Type**",
                 SOIL_TYPES,
                 help="Select the type of soil in your farm"
             )
-            
+
+        with col2:
             st.session_state.crop_stage = st.selectbox(
-                "**Crop Stage**", 
+                "**Crop Stage**",
                 CROP_STAGES,
                 help="Select the current growth stage of your crop"
             )
+
+        with col3:
+            btn_col, msg_col = st.columns([1, 2])
             
-            st.markdown("---")
+            with btn_col:
+                start_monitoring = st.button(
+                    "**Start Monitoring**",
+                    type="primary",
+                    use_container_width=True
+                )
             
-            # Connection Controls
-            self.render_connection_controls()
+            with msg_col:
+                if start_monitoring and not st.session_state.monitoring_active:
+                    self.start_monitoring()
+                
+                if st.session_state.monitoring_active:
+                    if st.session_state.mqtt_connected:
+                        if self.is_data_fresh():
+                            st.success("✅ Live monitoring active")
+                        else:
+                            st.warning("🔄 Connected - Waiting for data...")
+                    else:
+                        st.warning("🔄 Connecting to Raspberry Pi...")
     
-    def render_connection_controls(self):
-        """Render connection control buttons"""
-        st.subheader("🔗 Connection")
+    def render_connection_status(self):
+        """Render connection status at the bottom"""
+        st.markdown("---")
+        st.subheader("🔗 Connection Status")
         
-        # Connection status
-        if st.session_state.mqtt_connected:
-            if self.is_data_fresh():
-                st.success("✅ Live Data")
-                if st.session_state.last_data_time:
-                    last_update = st.session_state.last_data_time.strftime("%H:%M:%S")
-                    st.caption(f"Last: {last_update}")
+        status_col1, status_col2, status_col3 = st.columns(3)
+        
+        with status_col1:
+            if st.session_state.mqtt_connected:
+                if self.is_data_fresh():
+                    st.success("✅ Connected & Receiving Data")
+                    if st.session_state.last_data_time:
+                        last_update = st.session_state.last_data_time.strftime("%H:%M:%S")
+                        st.caption(f"Last update: {last_update}")
+                else:
+                    st.warning("🔄 Connected - No Recent Data")
+            elif st.session_state.monitoring_active:
+                st.warning("🔄 Connecting to MQTT Broker...")
             else:
-                st.warning("🔄 Connected - No Data")
-        elif st.session_state.monitoring_active:
-            st.warning("🔄 Connecting...")
-        else:
-            st.info("⏳ Ready to Connect")
+                st.info("⏳ Ready to Connect")
         
-        # Connection buttons
-        col1, col2 = st.columns(2)
+        with status_col2:
+            st.metric("Soil Type", st.session_state.soil_type)
+        
+        with status_col3:
+            st.metric("Crop Stage", st.session_state.crop_stage)
+        
+        # Control buttons at the bottom
+        col1, col2, col3 = st.columns([1, 1, 2])
         
         with col1:
             if not st.session_state.monitoring_active:
-                if st.button("🚀 Start", use_container_width=True, type="primary"):
+                if st.button("🚀 Start Monitoring", type="primary", use_container_width=True):
                     self.start_monitoring()
             else:
-                if st.button("🛑 Stop", use_container_width=True, type="secondary"):
+                if st.button("🛑 Stop Monitoring", type="secondary", use_container_width=True):
                     self.stop_monitoring()
         
         with col2:
-            if st.button("🔄 Refresh", use_container_width=True):
+            if st.button("🔄 Refresh Data", use_container_width=True):
                 st.rerun()
     
     def start_monitoring(self):
@@ -182,25 +220,8 @@ class Dashboard:
         """Render dashboard header"""
         render_header()  # This will show the header image
         
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            st.title("📊 Live Dashboard")
-            st.markdown("Real-time monitoring of your farm sensors and AI predictions")
-        
-        with col2:
-            # Quick status
-            if st.session_state.get('monitoring_active', False):
-                if self.is_data_fresh():
-                    st.success("✅ Live Data Streaming")
-                else:
-                    st.warning("🔄 No Recent Data")
-            else:
-                st.info("⏳ Monitoring Paused")
-    
-    def render_connection_info(self):
-        """Render connection information"""
-        st.info(f"**Active Configuration:** Soil Type: {st.session_state.get('soil_type', 'Black Soil')} | Crop Stage: {st.session_state.get('crop_stage', 'Germination')}")
+        st.title("📊 Live Dashboard")
+        st.markdown("Real-time monitoring of your farm sensors and AI predictions")
     
     def render_real_time_data(self):
         """Render real-time data section"""
@@ -226,9 +247,10 @@ class Dashboard:
         """Run the dashboard"""
         self.render_sidebar()
         self.render_dashboard_header()
-        self.render_connection_info()
+        self.render_configuration_section()
         self.render_real_time_data()
         self.render_historical_data()
+        self.render_connection_status()
 
 # Initialize and run dashboard
 if __name__ == "__main__":

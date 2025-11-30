@@ -14,24 +14,29 @@ class ComputerVisionPage:
         )
     
     def render_sidebar(self):
-        """Render sidebar navigation"""
+        """Render sidebar with page navigation only"""
         with st.sidebar:
             st.title("🌱 AgriEdge")
             st.markdown("---")
             
-            # Page Navigation
+            # Page Navigation with descriptions
             st.subheader("📄 Navigation")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📊 Dashboard", use_container_width=True):
-                    st.switch_page("streamlit_app.py")
-            with col2:
-                if st.button("👁️ CV Analysis", use_container_width=True):
-                    st.rerun()  # Already on CV page
+            # Dashboard Page
+            if st.button("📊 **Live Dashboard**", use_container_width=True):
+                st.switch_page("streamlit_app.py")
             
+            st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
-            st.caption("Advanced plant health analysis using computer vision")
+            
+            # Computer Vision Page
+            if st.button("👁️ **Computer Vision**", use_container_width=True):
+                st.rerun()  # Already on CV page
+            
+            st.caption("Plant disease detection & image analysis")
+            st.markdown("---")
+            
+            st.caption("Smart Farming AI System")
     
     def render_header(self):
         """Render page header"""
