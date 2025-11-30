@@ -84,14 +84,14 @@ class Dashboard:
             st.subheader("📄 Navigation")
             
             # Dashboard Page
-            if st.button("📊 **Live Dashboard**", use_container_width=True):
+            if st.button("📊 **Live Dashboard**", width='stretch'):
                 st.rerun()  # Already on dashboard
             
             st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
             
             # Computer Vision Page
-            if st.button("👁️ **Computer Vision**", use_container_width=True):
+            if st.button("👁️ **Computer Vision**", width='stretch'):
                 st.switch_page("pages/2_👁️_Computer_Vision.py")
             
             st.caption("Plant disease detection & image analysis")
@@ -120,69 +120,21 @@ class Dashboard:
             )
 
         with col3:
-            btn_col, msg_col = st.columns([1, 2])
-            
-            with btn_col:
-                start_monitoring = st.button(
-                    "**Start Monitoring**",
-                    type="primary",
-                    use_container_width=True
-                )
-            
-            with msg_col:
-                if start_monitoring and not st.session_state.monitoring_active:
-                    self.start_monitoring()
-                
-                if st.session_state.monitoring_active:
-                    if st.session_state.mqtt_connected:
-                        if self.is_data_fresh():
-                            st.success("✅ Live monitoring active")
-                        else:
-                            st.warning("🔄 Connected - Waiting for data...")
-                    else:
-                        st.warning("🔄 Connecting to Raspberry Pi...")
-    
-    def render_connection_status(self):
-        """Render connection status at the bottom"""
-        st.markdown("---")
-        st.subheader("🔗 Connection Status")
-        
-        status_col1, status_col2, status_col3 = st.columns(3)
-        
-        with status_col1:
-            if st.session_state.mqtt_connected:
-                if self.is_data_fresh():
-                    st.success("✅ Connected & Receiving Data")
-                    if st.session_state.last_data_time:
-                        last_update = st.session_state.last_data_time.strftime("%H:%M:%S")
-                        st.caption(f"Last update: {last_update}")
-                else:
-                    st.warning("🔄 Connected - No Recent Data")
-            elif st.session_state.monitoring_active:
-                st.warning("🔄 Connecting to MQTT Broker...")
-            else:
-                st.info("⏳ Ready to Connect")
-        
-        with status_col2:
-            st.metric("Soil Type", st.session_state.soil_type)
-        
-        with status_col3:
-            st.metric("Crop Stage", st.session_state.crop_stage)
-        
-        # Control buttons at the bottom
-        col1, col2, col3 = st.columns([1, 1, 2])
-        
-        with col1:
+            # Status and Start button in the same column
             if not st.session_state.monitoring_active:
-                if st.button("🚀 Start Monitoring", type="primary", use_container_width=True):
+                # Show start button with ready status
+                if st.button("**Start Monitoring**", type="primary", width='stretch'):
                     self.start_monitoring()
+                st.info("⏳ Ready to Connect")
             else:
-                if st.button("🛑 Stop Monitoring", type="secondary", use_container_width=True):
-                    self.stop_monitoring()
-        
-        with col2:
-            if st.button("🔄 Refresh Data", use_container_width=True):
-                st.rerun()
+                # Show status messages when monitoring is active
+                if st.session_state.mqtt_connected:
+                    if self.is_data_fresh():
+                        st.success("✅ Live monitoring active - Receiving data from RPi")
+                    else:
+                        st.warning("🔄 Connected to RPi - Waiting for sensor data...")
+                else:
+                    st.warning("🔄 Connecting to Raspberry Pi...")
     
     def start_monitoring(self):
         """Start monitoring session"""
@@ -243,6 +195,15 @@ class Dashboard:
         st.header("📈 Historical Trends")
         render_charts()
     
+    def render_stop_section(self):
+        """Render stop button at the bottom"""
+        st.markdown("---")
+        if st.session_state.monitoring_active:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("Stop Monitoring", type="primary", width='stretch'):
+                    self.stop_monitoring()
+    
     def run(self):
         """Run the dashboard"""
         self.render_sidebar()
@@ -250,7 +211,7 @@ class Dashboard:
         self.render_configuration_section()
         self.render_real_time_data()
         self.render_historical_data()
-        self.render_connection_status()
+        self.render_stop_section()
 
 # Initialize and run dashboard
 if __name__ == "__main__":

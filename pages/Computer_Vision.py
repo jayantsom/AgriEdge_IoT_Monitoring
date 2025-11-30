@@ -23,14 +23,14 @@ class ComputerVisionPage:
             st.subheader("📄 Navigation")
             
             # Dashboard Page
-            if st.button("📊 **Live Dashboard**", use_container_width=True):
+            if st.button("📊 **Live Dashboard**", width='stretch'):
                 st.switch_page("streamlit_app.py")
             
             st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
             
             # Computer Vision Page
-            if st.button("👁️ **Computer Vision**", use_container_width=True):
+            if st.button("👁️ **Computer Vision**", width='stretch'):
                 st.rerun()  # Already on CV page
             
             st.caption("Plant disease detection & image analysis")
