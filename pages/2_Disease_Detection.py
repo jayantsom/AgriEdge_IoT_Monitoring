@@ -1,15 +1,15 @@
-# pages/2_👁️_Computer_Vision.py
+# pages/2_Disease_Detection.py
 import streamlit as st
 
-class ComputerVisionPage:
+class DiseaseDetectionPage:
     def __init__(self):
         self.setup_page()
     
     def setup_page(self):
         """Setup page configuration"""
         st.set_page_config(
-            page_title="Computer Vision - AgriEdge", 
-            page_icon="👁️",
+            page_title="Disease Detection - AgriEdge", 
+            page_icon="🦠",
             layout="wide"
         )
     
@@ -29,19 +29,19 @@ class ComputerVisionPage:
             st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
             
-            # Computer Vision Page
-            if st.button("👁️ **Computer Vision**", width='stretch'):
-                st.rerun()  # Already on CV page
+            # Disease Detection Page
+            if st.button("🦠 **Disease Detection**", width='stretch'):
+                st.rerun()  # Already on disease detection page
             
-            st.caption("Plant disease detection & image analysis")
+            st.caption("AI-powered plant disease detection & analysis")
             st.markdown("---")
             
             st.caption("Smart Farming AI System")
     
     def render_header(self):
         """Render page header"""
-        st.title("👁️ Computer Vision Analytics")
-        st.markdown("Advanced plant health analysis using computer vision and AI")
+        st.title("🦠 Disease Detection")
+        st.markdown("AI-powered plant disease detection and health analysis")
         st.markdown("---")
     
     def render_placeholder_content(self):
@@ -98,7 +98,7 @@ class ComputerVisionPage:
             )
             
             if uploaded_file is not None:
-                st.warning("🛠️ Computer vision analysis is currently under development")
+                st.warning("🛠️ Disease detection analysis is currently under development")
     
     def render_development_timeline(self):
         """Render development timeline"""
@@ -117,13 +117,13 @@ class ComputerVisionPage:
                     st.write(f"• {feature}")
     
     def run(self):
-        """Run the computer vision page"""
+        """Run the disease detection page"""
         self.render_sidebar()
         self.render_header()
         self.render_placeholder_content()
         self.render_development_timeline()
 
-# Initialize and run computer vision page
+# Initialize and run disease detection page
 if __name__ == "__main__":
-    cv_page = ComputerVisionPage()
-    cv_page.run()
+    disease_page = DiseaseDetectionPage()
+    disease_page.run()

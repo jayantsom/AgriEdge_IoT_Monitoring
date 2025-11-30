@@ -7,7 +7,7 @@ def render_header():
     header_path = "./assets/header1.jpg"
     
     if os.path.exists(header_path):
-        st.image(header_path, use_column_width=True)
+        st.image(header_path, width='stretch')
     else:
         # Fallback header if image not found
         st.markdown("""

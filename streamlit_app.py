@@ -90,11 +90,10 @@ class Dashboard:
             st.caption("Real-time sensor monitoring & analytics")
             st.markdown("---")
             
-            # Computer Vision Page
-            if st.button("👁️ **Computer Vision**", width='stretch'):
-                st.switch_page("pages/Computer_Vision.py")
+            if st.button("🦠 **Disease Detection**", width='stretch'):
+                st.switch_page("pages/2_Disease_Detection.py")
             
-            st.caption("Plant disease detection & image analysis")
+            st.caption("AI-powered plant disease detection & analysis")
             st.markdown("---")
             
             st.caption("Smart Farming AI System")
