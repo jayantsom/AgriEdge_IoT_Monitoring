@@ -1,25 +1,26 @@
 # streamlit_app.py
 import streamlit as st
+import pandas as pd
 from datetime import datetime
-from config import DATA_FRESHNESS_THRESHOLD
 
-class SmartFarmingApp:
+from components.header import render_header
+from components.sensor_display import render_sensor_tiles
+from components.charts import render_charts
+from components.status_indicators import render_status_indicators
+from config import DATA_FRESHNESS_THRESHOLD, SOIL_TYPES, CROP_STAGES
+
+class Dashboard:
     def __init__(self):
-        self.setup_page_config()
+        self.setup_page()
         self.initialize_session_state()
     
-    def setup_page_config(self):
-        """Configure Streamlit page settings"""
+    def setup_page(self):
+        """Setup page configuration"""
         st.set_page_config(
-            page_title="AgriEdge - Smart Farming",
+            page_title="AgriEdge - Smart Farming Dashboard",
             page_icon="🌱",
             layout="wide",
-            initial_sidebar_state="expanded",
-            menu_items={
-                'Get Help': 'https://github.com/your-repo',
-                'Report a bug': "https://github.com/your-repo/issues",
-                'About': "# AgriEdge Smart Farming Dashboard"
-            }
+            initial_sidebar_state="expanded"
         )
         
         self.inject_custom_css()
@@ -34,15 +35,16 @@ class SmartFarmingApp:
                 text-align: center;
                 margin-bottom: 1rem;
             }
-            .sidebar .sidebar-content {
-                background-color: #f8f9fa;
-            }
             .metric-card {
                 background-color: #f0f2f6;
                 padding: 1rem;
                 border-radius: 10px;
                 border-left: 4px solid #2E8B57;
             }
+            .status-healthy { color: #28a745; }
+            .status-warning { color: #ffc107; }
+            .status-critical { color: #dc3545; }
+            .status-offline { color: #6c757d; }
             div[data-testid="stSidebarNav"] {
                 padding-top: 2rem;
             }
@@ -55,8 +57,8 @@ class SmartFarmingApp:
             'monitoring_active': False,
             'mqtt_connected': False,
             'last_data_time': None,
-            'soil_type': 'Black Soil',
-            'crop_stage': 'Germination',
+            'soil_type': SOIL_TYPES[0],
+            'crop_stage': CROP_STAGES[0],
             'sensor_data': None,
             'connection_attempts': 0
         }
@@ -73,42 +75,49 @@ class SmartFarmingApp:
         return False
     
     def render_sidebar(self):
-        """Render sidebar with configuration and status"""
+        """Render sidebar with page navigation"""
         with st.sidebar:
             st.title("🌱 AgriEdge")
             st.markdown("---")
             
+            # Page Navigation
+            st.subheader("📄 Navigation")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📊 Dashboard", use_container_width=True):
+                    st.rerun()  # Already on dashboard
+            with col2:
+                if st.button("👁️ CV Analysis", use_container_width=True):
+                    st.switch_page("pages/2_👁️_Computer_Vision.py")
+            
+            st.markdown("---")
+            
             # Configuration Section
-            st.header("⚙️ Configuration")
+            st.subheader("⚙️ Farm Configuration")
             
             st.session_state.soil_type = st.selectbox(
                 "**Soil Type**",
-                ['Black Soil', 'Clay', 'Sandy', 'Red', 'Loam', 'Alluvial', 'Chalky'],
-                index=0,
+                SOIL_TYPES,
                 help="Select the type of soil in your farm"
             )
             
             st.session_state.crop_stage = st.selectbox(
                 "**Crop Stage**", 
-                ['Germination', 'Seedling', 'Vegetative Growth', 'Flowering', 'Fruit Formation', 'Maturation'],
-                index=0,
+                CROP_STAGES,
                 help="Select the current growth stage of your crop"
             )
             
             st.markdown("---")
             
-            # Connection Status
-            self.render_connection_status()
-            
-            st.markdown("---")
-            
-            # Navigation Info
-            st.caption("💡 Use the hamburger menu to navigate between pages")
+            # Connection Controls
+            self.render_connection_controls()
     
-    def render_connection_status(self):
-        """Render connection status in sidebar"""
-        st.subheader("🔗 Connection Status")
+    def render_connection_controls(self):
+        """Render connection control buttons"""
+        st.subheader("🔗 Connection")
         
+        # Connection status
         if st.session_state.mqtt_connected:
             if self.is_data_fresh():
                 st.success("✅ Live Data")
@@ -122,15 +131,15 @@ class SmartFarmingApp:
         else:
             st.info("⏳ Ready to Connect")
         
-        # Connection controls
+        # Connection buttons
         col1, col2 = st.columns(2)
         
         with col1:
             if not st.session_state.monitoring_active:
-                if st.button("🚀 Start", use_container_width=True):
+                if st.button("🚀 Start", use_container_width=True, type="primary"):
                     self.start_monitoring()
             else:
-                if st.button("🛑 Stop", use_container_width=True):
+                if st.button("🛑 Stop", use_container_width=True, type="secondary"):
                     self.stop_monitoring()
         
         with col2:
@@ -158,79 +167,70 @@ class SmartFarmingApp:
         }
         
         st.success("Monitoring started successfully!")
+        st.rerun()
     
     def stop_monitoring(self):
         """Stop monitoring session"""
         st.session_state.monitoring_active = False
         st.session_state.mqtt_connected = False
         st.session_state.last_data_time = None
+        st.session_state.sensor_data = None
         st.info("Monitoring stopped")
+        st.rerun()
     
-    def render_main_content(self):
-        """Render main content area"""
-        st.markdown("""
-        <div style="text-align: center; padding: 2rem;">
-            <h1 style="color: #2E8B57; margin-bottom: 1rem;">🌱 Welcome to AgriEdge</h1>
-            <p style="font-size: 1.2rem; color: #666;">
-                Smart Farming Dashboard & Computer Vision Analytics
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    def render_dashboard_header(self):
+        """Render dashboard header"""
+        render_header()  # This will show the header image
         
-        st.markdown("---")
-        
-        # Quick Stats
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns([3, 1])
         
         with col1:
-            st.metric("Active Sessions", "1" if st.session_state.monitoring_active else "0")
+            st.title("📊 Live Dashboard")
+            st.markdown("Real-time monitoring of your farm sensors and AI predictions")
         
         with col2:
-            st.metric("Data Points", "1,247")
-        
-        with col3:
-            st.metric("System Uptime", "99.8%")
-        
-        with col4:
-            st.metric("Alerts", "0")
-        
+            # Quick status
+            if st.session_state.get('monitoring_active', False):
+                if self.is_data_fresh():
+                    st.success("✅ Live Data Streaming")
+                else:
+                    st.warning("🔄 No Recent Data")
+            else:
+                st.info("⏳ Monitoring Paused")
+    
+    def render_connection_info(self):
+        """Render connection information"""
+        st.info(f"**Active Configuration:** Soil Type: {st.session_state.get('soil_type', 'Black Soil')} | Crop Stage: {st.session_state.get('crop_stage', 'Germination')}")
+    
+    def render_real_time_data(self):
+        """Render real-time data section"""
         st.markdown("---")
+        st.header("📊 Real-time Sensor Data")
         
-        # Getting Started Guide
-        st.subheader("🚀 Getting Started")
+        # Get current sensor data
+        sensor_data = st.session_state.get('sensor_data', None)
         
-        guide_col1, guide_col2 = st.columns(2)
+        # Render sensor tiles
+        render_sensor_tiles(sensor_data)
         
-        with guide_col1:
-            st.markdown("""
-            ### 📊 Live Dashboard
-            - Real-time sensor monitoring
-            - Environmental data visualization  
-            - Plant health analytics
-            - Irrigation control
-            """)
-            
-            if st.button("Go to Dashboard", type="primary"):
-                st.switch_page("pages/1_📊_Live_Dashboard.py")
-        
-        with guide_col2:
-            st.markdown("""
-            ### 👁️ Computer Vision
-            - Plant disease detection
-            - Growth stage analysis
-            - Pest identification
-            - Yield prediction
-            """)
-            
-            if st.button("Go to Computer Vision"):
-                st.switch_page("pages/2_👁️_Computer_Vision.py")
+        # Render status indicators
+        render_status_indicators(sensor_data)
+    
+    def render_historical_data(self):
+        """Render historical data charts"""
+        st.markdown("---")
+        st.header("📈 Historical Trends")
+        render_charts()
     
     def run(self):
-        """Main application runner"""
+        """Run the dashboard"""
         self.render_sidebar()
-        self.render_main_content()
+        self.render_dashboard_header()
+        self.render_connection_info()
+        self.render_real_time_data()
+        self.render_historical_data()
 
-# Run the application
+# Initialize and run dashboard
 if __name__ == "__main__":
-    app = SmartFarmingApp()
-    app.run()
+    dashboard = Dashboard()
+    dashboard.run()
