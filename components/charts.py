@@ -125,7 +125,7 @@ def render_environmental_chart():
                 fig.update_yaxes(title_text="Temperature (°C) / Humidity (%)", secondary_y=False)
                 fig.update_yaxes(title_text="Moisture (%) / Light (lux)", secondary_y=True)
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
             else:
                 st.info("📊 Collecting sensor data... Chart will appear shortly.")
@@ -174,7 +174,7 @@ def render_npk_chart():
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
             else:
                 st.info("📊 Collecting NPK data... Chart will appear shortly.")

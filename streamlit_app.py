@@ -92,7 +92,7 @@ class Dashboard:
             
             # Computer Vision Page
             if st.button("👁️ **Computer Vision**", width='stretch'):
-                st.switch_page("pages/2_👁️_Computer_Vision.py")
+                st.switch_page("pages/Computer_Vision.py")
             
             st.caption("Plant disease detection & image analysis")
             st.markdown("---")
@@ -172,7 +172,7 @@ class Dashboard:
         """Render dashboard header"""
         render_header()  # This will show the header image
         
-        st.title("📊 Live Dashboard")
+        st.header("📊 Live Dashboard")
         st.markdown("Real-time monitoring of your farm sensors and AI predictions")
     
     def render_real_time_data(self):
