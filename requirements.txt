@@ -2,3 +2,6 @@ streamlit
 pandas
 plotly
 paho-mqtt
+torch
+transformers
+pillow
