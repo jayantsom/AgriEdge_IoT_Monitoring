@@ -24,18 +24,32 @@ class DiseaseDetectionPage:
     def load_model(self):
         """Load the ViT model and processor"""
         try:
-            model_path = "plant_disease_vit_model"
+            # Correct path: model is inside disease_detection folder
+            model_path = "disease_detection/plant_disease_vit_model"
+            
+            # Debug: Show what path we're looking at
+            st.info(f"🔍 Looking for model at: {os.path.abspath(model_path)}")
             
             if not os.path.exists(model_path):
                 st.error(f"❌ Model folder not found at: {model_path}")
+                st.info(f"Current directory: {os.getcwd()}")
+                
+                # List directories to help debug
+                if os.path.exists("disease_detection"):
+                    st.info("📁 Contents of 'disease_detection' folder:")
+                    for item in os.listdir("disease_detection"):
+                        st.write(f"  - {item}")
                 return False
             
             # Check for model files
             model_files = os.listdir(model_path)
-            st.info(f"📁 Model files found: {model_files}")
+            st.info(f"📁 Model files found: {', '.join(model_files)}")
             
             # Load processor and model
+            st.info("🔄 Loading image processor...")
             self.processor = ViTImageProcessor.from_pretrained(model_path)
+            
+            st.info("🔄 Loading ViT model...")
             
             # Try loading with different model file names
             if "model.safetensors" in model_files:
@@ -43,16 +57,25 @@ class DiseaseDetectionPage:
             elif "pytorch_model.bin" in model_files:
                 self.model = ViTForImageClassification.from_pretrained(model_path)
             else:
-                st.error("❌ No valid model file found (model.safetensors or pytorch_model.bin)")
-                return False
+                # Try to load anyway (Hugging Face will look for all supported formats)
+                self.model = ViTForImageClassification.from_pretrained(model_path)
             
             self.model.eval()  # Set to evaluation mode
             self.model_loaded = True
             st.success("✅ Model loaded successfully!")
+            
+            # Show model info
+            st.info(f"📊 Model Info:")
+            st.write(f"- Architecture: {self.model.config.model_type}")
+            st.write(f"- Image size: {self.model.config.image_size}")
+            st.write(f"- Number of classes: {len(self.model.config.id2label)}")
+            
             return True
             
         except Exception as e:
             st.error(f"❌ Error loading model: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
             return False
     
     def predict_disease(self, image_path):
@@ -167,13 +190,15 @@ class DiseaseDetectionPage:
                 st.info(f"Classes: {len(self.model.config.id2label)} plant disease categories")
         
         with col2:
+            # Correct path: test images are inside disease_detection folder
             test_images_path = "disease_detection/test_images"
             if os.path.exists(test_images_path):
                 image_files = glob.glob(os.path.join(test_images_path, "*.*"))
                 image_files = [f for f in image_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
                 st.metric("Test Images", len(image_files))
             else:
-                st.error("❌ Test images folder not found")
+                st.warning("📁 Test images folder not found")
+                st.info("Create: disease_detection/test_images/")
     
     def render_detection_results(self):
         """Render disease detection results"""
@@ -183,11 +208,11 @@ class DiseaseDetectionPage:
             st.info("👆 Please load the model first to start disease detection")
             return
         
-        # Get test images
+        # Get test images - Correct path
         test_images_path = "disease_detection/test_images"
         if not os.path.exists(test_images_path):
-            st.error(f"❌ Test images folder not found at: {test_images_path}")
-            st.info("Please create a 'disease_detection/test_images' folder with plant images")
+            st.warning(f"📁 Test images folder not found at: {test_images_path}")
+            st.info("Please create this folder and add some plant images")
             return
         
         # Find image files
@@ -228,7 +253,7 @@ class DiseaseDetectionPage:
                         # Display image with border
                         image = Image.open(result['image_path'])
                         
-                        # Create styled container
+                        # Create styled container with border
                         border_color = result['border_color']
                         st.markdown(f"""
                         <div style="border: 3px solid {border_color}; border-radius: 10px; padding: 10px; margin-bottom: 10px;">
@@ -240,20 +265,24 @@ class DiseaseDetectionPage:
                         # Display prediction info
                         st.markdown(f"**Plant:** {result['plant']}")
                         st.markdown(f"**Disease:** {result['disease']}")
-                        st.markdown(f"**Confidence:** {result['confidence']*100:.1f}%")
                         
                         # Color code the confidence
-                        confidence_color = "#28a745" if result['confidence'] > 0.7 else "#ffc107" if result['confidence'] > 0.5 else "#dc3545"
-                        st.markdown(f"<p style='color: {confidence_color}; font-weight: bold;'>Confidence: {result['confidence']*100:.1f}%</p>", unsafe_allow_html=True)
+                        confidence_score = result['confidence'] * 100
+                        confidence_color = "#28a745" if confidence_score > 70 else "#ffc107" if confidence_score > 50 else "#dc3545"
+                        st.markdown(f"<p style='color: {confidence_color}; font-weight: bold;'>Confidence: {confidence_score:.1f}%</p>", unsafe_allow_html=True)
         
         else:
             # Show preview of images without processing
+            st.info("👆 Click 'Run Disease Detection' to analyze the images below")
             cols = st.columns(4)
             for i, image_path in enumerate(images_to_process):
                 with cols[i]:
-                    image = Image.open(image_path)
-                    st.image(image, use_column_width=True, caption=f"Image {i+1}")
-                    st.caption("Click 'Run Disease Detection' to analyze")
+                    try:
+                        image = Image.open(image_path)
+                        st.image(image, use_column_width=True, caption=f"Image {i+1}")
+                        st.caption(os.path.basename(image_path))
+                    except Exception as e:
+                        st.error(f"Error loading image: {e}")
     
     def render_class_info(self):
         """Render information about disease classes"""
