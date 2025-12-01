@@ -5,3 +5,4 @@ paho-mqtt
 torch
 transformers
 pillow
+safetensors

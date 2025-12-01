@@ -3,8 +3,9 @@ import streamlit as st
 import os
 from PIL import Image
 import torch
-from transformers import ViTForImageClassification, ViTImageProcessor
+from transformers import ViTForImageClassification, ViTImageProcessor, ViTConfig
 import glob
+import json
 
 class DiseaseDetectionPage:
     def __init__(self):
@@ -22,53 +23,89 @@ class DiseaseDetectionPage:
         )
     
     def load_model(self):
-        """Load the ViT model and processor"""
+        """Load the ViT model and processor - FIXED VERSION"""
         try:
             # Correct path: model is inside disease_detection folder
             model_path = "disease_detection/plant_disease_vit_model"
             
-            # Debug: Show what path we're looking at
-            st.info(f"🔍 Looking for model at: {os.path.abspath(model_path)}")
+            st.info(f"🔍 Loading model from: {model_path}")
             
             if not os.path.exists(model_path):
                 st.error(f"❌ Model folder not found at: {model_path}")
-                st.info(f"Current directory: {os.getcwd()}")
-                
-                # List directories to help debug
-                if os.path.exists("disease_detection"):
-                    st.info("📁 Contents of 'disease_detection' folder:")
-                    for item in os.listdir("disease_detection"):
-                        st.write(f"  - {item}")
                 return False
             
             # Check for model files
             model_files = os.listdir(model_path)
-            st.info(f"📁 Model files found: {', '.join(model_files)}")
+            st.info(f"📁 Found files: {', '.join(model_files)}")
             
-            # Load processor and model
+            # Load config first
+            config_path = os.path.join(model_path, "model_config.json")
+            if not os.path.exists(config_path):
+                st.error(f"❌ Config file not found: {config_path}")
+                return False
+            
+            # Load config
+            with open(config_path, 'r') as f:
+                config_dict = json.load(f)
+            
+            # Create config object
+            config = ViTConfig.from_dict(config_dict)
+            
+            # Verify number of classes
+            num_labels = len(config.id2label)
+            st.info(f"📊 Model expects {num_labels} classes")
+            
+            # Load processor
             st.info("🔄 Loading image processor...")
             self.processor = ViTImageProcessor.from_pretrained(model_path)
             
+            # Load model with correct config
             st.info("🔄 Loading ViT model...")
             
-            # Try loading with different model file names
-            if "model.safetensors" in model_files:
-                self.model = ViTForImageClassification.from_pretrained(model_path)
-            elif "pytorch_model.bin" in model_files:
-                self.model = ViTForImageClassification.from_pretrained(model_path)
+            # Check for different model file formats
+            safetensors_path = os.path.join(model_path, "model.safetensors")
+            bin_path = os.path.join(model_path, "pytorch_model.bin")
+            pth_path = os.path.join(model_path, "model.pth")
+            
+            # Create model with correct config
+            self.model = ViTForImageClassification(config)
+            
+            # Load weights based on available file
+            if os.path.exists(safetensors_path):
+                st.info("📦 Loading from .safetensors file...")
+                from safetensors.torch import load_file
+                state_dict = load_file(safetensors_path)
+                # Fix key names if needed
+                new_state_dict = {}
+                for k, v in state_dict.items():
+                    if k.startswith("vit."):
+                        new_state_dict[k[4:]] = v  # Remove "vit." prefix
+                    else:
+                        new_state_dict[k] = v
+                self.model.load_state_dict(new_state_dict, strict=False)
+                
+            elif os.path.exists(bin_path):
+                st.info("📦 Loading from .bin file...")
+                state_dict = torch.load(bin_path, map_location=torch.device('cpu'))
+                self.model.load_state_dict(state_dict, strict=False)
+                
+            elif os.path.exists(pth_path):
+                st.info("📦 Loading from .pth file...")
+                state_dict = torch.load(pth_path, map_location=torch.device('cpu'))
+                self.model.load_state_dict(state_dict, strict=False)
             else:
-                # Try to load anyway (Hugging Face will look for all supported formats)
-                self.model = ViTForImageClassification.from_pretrained(model_path)
+                st.error("❌ No model weight file found (.safetensors, .bin, or .pth)")
+                return False
             
             self.model.eval()  # Set to evaluation mode
             self.model_loaded = True
-            st.success("✅ Model loaded successfully!")
             
-            # Show model info
-            st.info(f"📊 Model Info:")
-            st.write(f"- Architecture: {self.model.config.model_type}")
-            st.write(f"- Image size: {self.model.config.image_size}")
-            st.write(f"- Number of classes: {len(self.model.config.id2label)}")
+            # Test with a dummy input to verify
+            with torch.no_grad():
+                dummy_input = torch.randn(1, 3, 224, 224)
+                output = self.model(dummy_input)
+                st.success(f"✅ Model loaded! Output shape: {output.logits.shape}")
+                st.success(f"✅ Number of classes: {output.logits.shape[1]}")
             
             return True
             
@@ -212,7 +249,6 @@ class DiseaseDetectionPage:
         test_images_path = "disease_detection/test_images"
         if not os.path.exists(test_images_path):
             st.warning(f"📁 Test images folder not found at: {test_images_path}")
-            st.info("Please create this folder and add some plant images")
             return
         
         # Find image files
@@ -287,7 +323,7 @@ class DiseaseDetectionPage:
     def render_class_info(self):
         """Render information about disease classes"""
         if self.model_loaded:
-            with st.expander("📋 Supported Plant Diseases (38 Classes)"):
+            with st.expander("📋 Supported Plant Diseases"):
                 # Group by plant type
                 plants_dict = {}
                 for class_id, label in self.model.config.id2label.items():
