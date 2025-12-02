@@ -29,6 +29,14 @@ class Dashboard:
         """Inject custom CSS for better styling"""
         st.markdown("""
         <style>
+            /* Hide Streamlit's default navigation */
+            div[data-testid="stSidebarNav"] {
+                display: none;
+            }
+            section[data-testid="stSidebar"] ul {
+                display: none !important;
+            }
+            
             .main-header {
                 font-size: 2.5rem;
                 color: #2E8B57;
@@ -45,9 +53,6 @@ class Dashboard:
             .status-warning { color: #ffc107; }
             .status-critical { color: #dc3545; }
             .status-offline { color: #6c757d; }
-            div[data-testid="stSidebarNav"] {
-                padding-top: 2rem;
-            }
         </style>
         """, unsafe_allow_html=True)
     
@@ -75,28 +80,39 @@ class Dashboard:
         return False
     
     def render_sidebar(self):
-        """Render sidebar with page navigation only"""
+        """Render clean sidebar with minimal navigation"""
         with st.sidebar:
-            st.title("🌱 AgriEdge")
+            # App header with description
+            st.markdown("""
+            <div style="text-align: center; padding: 1rem 0;">
+                <h1 style="font-size: 1.8rem; margin: 0; color: #2E8B57;">🌱 AgriEdge</h1>
+                <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0 0 0;">
+                    Smart Farming AI System
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.markdown("---")
             
-            # Page Navigation with descriptions
-            st.subheader("📄 Navigation")
+            # Clean navigation section
+            st.markdown("### 📄 Navigation")
             
-            # Dashboard Page
-            if st.button("📊 **Live Dashboard**", width='stretch'):
+            # Dashboard button
+            if st.button("📊 **Dashboard**", 
+                        width='stretch',
+                        help="Live sensor monitoring & analytics"):
                 st.rerun()  # Already on dashboard
             
-            st.caption("Real-time sensor monitoring & analytics")
-            st.markdown("---")
-            
-            if st.button("🦠 **Disease Detection**", width='stretch'):
+            # Disease Detection button  
+            if st.button("🦠 **Disease Detection**", 
+                        width='stretch',
+                        help="AI-powered plant disease detection"):
                 st.switch_page("pages/2_Disease_Detection.py")
             
-            st.caption("AI-powered plant disease detection & analysis")
             st.markdown("---")
             
-            st.caption("Smart Farming AI System")
+            # Footer with minimal info
+            st.caption("IoT Agriculture Monitoring")
     
     def render_configuration_section(self):
         """Render configuration section on main dashboard"""

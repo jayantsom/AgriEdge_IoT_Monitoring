@@ -309,29 +309,39 @@ class DiseaseDetectionPage:
             return "#6c757d"   # Gray for unknown
     
     def render_sidebar(self):
-        """Render sidebar with page navigation only"""
+        """Render clean sidebar with minimal navigation"""
         with st.sidebar:
-            st.title("🌱 AgriEdge")
+            # App header with description
+            st.markdown("""
+            <div style="text-align: center; padding: 1rem 0;">
+                <h1 style="font-size: 1.8rem; margin: 0; color: #2E8B57;">🌱 AgriEdge</h1>
+                <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0 0 0;">
+                    Smart Farming AI System
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.markdown("---")
             
-            # Page Navigation with descriptions
-            st.subheader("📄 Navigation")
+            # Clean navigation section
+            st.markdown("### 📄 Navigation")
             
-            # Dashboard Page
-            if st.button("📊 **Live Dashboard**", width='stretch'):
+            # Dashboard button
+            if st.button("📊 **Dashboard**", 
+                        width='stretch',
+                        help="Live sensor monitoring & analytics"):
                 st.switch_page("streamlit_app.py")
             
-            st.caption("Real-time sensor monitoring & analytics")
-            st.markdown("---")
-            
-            # Disease Detection Page
-            if st.button("🦠 **Disease Detection**", width='stretch'):
+            # Disease Detection button  
+            if st.button("🦠 **Disease Detection**", 
+                        width='stretch',
+                        help="AI-powered plant disease detection"):
                 st.rerun()  # Already on disease detection page
             
-            st.caption("AI-powered plant disease detection & analysis")
             st.markdown("---")
             
-            st.caption("Smart Farming AI System")
+            # Footer with minimal info
+            st.caption("IoT Agriculture Monitoring")
     
     def render_header(self):
         """Render page header"""
@@ -419,7 +429,7 @@ class DiseaseDetectionPage:
                 with cols[i]:
                     try:
                         image = Image.open(image_path)
-                        st.image(image, use_container_width=True, caption=f"Sample {i+1}")
+                        st.image(image, width='stretch', caption=f"Sample {i+1}")
                     except Exception:
                         st.error("Error loading image")
             
@@ -427,7 +437,7 @@ class DiseaseDetectionPage:
             if st.session_state.model_loaded:
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
-                    if st.button("🎯 Run Disease Analysis", type="primary", use_container_width=True):
+                    if st.button("🎯 Run Disease Analysis", type="primary", width='stretch'):
                         with st.spinner("Analyzing plant images..."):
                             results = []
                             for image_path in st.session_state.test_images:
@@ -483,7 +493,7 @@ class DiseaseDetectionPage:
                     else:
                         status_indicator = "❓"
                     
-                    st.image(image, use_container_width=True, caption=f"{status_indicator} Sample {i+1}")
+                    st.image(image, width='stretch', caption=f"{status_indicator} Sample {i+1}")
                     
                     # Display prediction info with colored border
                     border_color = result['border_color']
@@ -529,6 +539,14 @@ class DiseaseDetectionPage:
     
     def run(self):
         """Run the disease detection page"""
+
+        st.markdown("""
+        <style>
+            div[data-testid="stSidebarNav"] {display: none;}
+            section[data-testid="stSidebar"] ul {display: none !important;}
+        </style>
+        """, unsafe_allow_html=True)
+
         self.render_sidebar()
         self.render_header()
         
