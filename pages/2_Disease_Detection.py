@@ -565,7 +565,7 @@ class DiseaseDetectionPage:
                                 continue
                             
                             # Create two columns for layout
-                            col1, col2 = st.columns([3, 2])
+                            col1, col2 = st.columns([1, 2])
                             
                             with col1:
                                 # Basic Information
@@ -671,7 +671,7 @@ class DiseaseDetectionPage:
                             # Plant image if available
                             if plant_info.get('image_url'):
                                 st.markdown("---")
-                                st.markdown("### 🖼️ Plant Image")
+                                st.markdown("### 🖼️ Healthy Plant Image")
                                 try:
                                     response = requests.get(plant_info['image_url'], timeout=5)
                                     if response.status_code == 200:
