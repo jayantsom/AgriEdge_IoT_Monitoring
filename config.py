@@ -27,3 +27,13 @@ PLANT_HEALTH_COLORS = {
     'High Stress': 'red',
     'Unknown': 'gray'
 }
+
+# API Configuration
+TREFLE_API_KEY = "usr-1TsrpZXYG0Ey5xBLnj251QHBxKsZSq4v4RJ6QNyoxgE"
+PLANTBOOK_API_KEY = "9fa8c17b3181858f8727a6484e63863b09cd2b07"
+PLANTBOOK_CLIENT_ID = "oxtJwxRC1x4BaZjGNnyjpONI9GMERKTBsG6TtQQ9"
+PLANTBOOK_CLIENT_SECRET = "EnYbfGF07PHjUNv5KKQpaV7L4DAapRzuIUNhB1D8wP6w2Hm7D04xr6bKLTCVTXI8jxvMmikkzCzhf1rXkzxoZDwsYjVd1eVLfCOpErsA0PyXvn1Eeh2EzhOfkMes1zQK"
+
+# API Endpoints
+TREFLE_BASE_URL = "https://trefle.io/api/v1"
+PLANTBOOK_BASE_URL = "https://open.plantbook.io/api/v1"

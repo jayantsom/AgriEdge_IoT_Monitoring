@@ -6,6 +6,7 @@ import torch
 from transformers import ViTForImageClassification, ViTImageProcessor, ViTConfig
 import glob
 import json
+import requests
 
 class DiseaseDetectionPage:
     def __init__(self):
@@ -536,6 +537,155 @@ class DiseaseDetectionPage:
                         
                 except Exception as e:
                     st.error(f"Error displaying result")
+
+    def render_plant_information(self):
+        """Render plant information from Trefle and PlantBook APIs"""
+        if not st.session_state.show_results or not st.session_state.results:
+            return
+        
+        st.subheader("📚 Plant Information")
+        st.markdown("API data from Trefle and PlantBook databases")
+        
+        # Import the plant API service
+        try:
+            from services.plant_api_service import plant_api_service
+            
+            # Create tabs for each plant result
+            tabs = st.tabs([f"🌿 {result['plant_name']}" for result in st.session_state.results])
+            
+            for i, (tab, result) in enumerate(zip(tabs, st.session_state.results)):
+                with tab:
+                    if result['plant_name'] not in ['Unknown', '']:
+                        with st.spinner(f"Fetching information for {result['plant_name']}..."):
+                            # Get plant information
+                            plant_info = plant_api_service.extract_plant_info_for_display(result['plant_name'])
+                            
+                            if not plant_info.get('scientific_name') or plant_info['scientific_name'] == 'Unknown':
+                                st.info(f"No detailed information found for {result['plant_name']}")
+                                continue
+                            
+                            # Create two columns for layout
+                            col1, col2 = st.columns([3, 2])
+                            
+                            with col1:
+                                # Basic Information
+                                st.markdown("### 📝 Basic Information")
+                                
+                                # Show source
+                                st.markdown(f"""
+                                <div style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">
+                                    Data from: <a href="https://trefle.io" target="_blank" style="text-decoration: none; color: #4CAF50;">Trefle.io</a>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Scientific name
+                                st.markdown(f"**Scientific Name:** `{plant_info['scientific_name']}`")
+                                
+                                # Taxonomy
+                                if plant_info.get('family') or plant_info.get('genus'):
+                                    st.markdown("**Taxonomy:**")
+                                    taxonomy_text = ""
+                                    if plant_info.get('family'):
+                                        taxonomy_text += f"Family: `{plant_info['family']}`  "
+                                    if plant_info.get('genus'):
+                                        taxonomy_text += f"Genus: `{plant_info['genus']}`"
+                                    st.markdown(taxonomy_text)
+                                
+                                # Observations
+                                if plant_info.get('observations'):
+                                    st.markdown(f"**Geography:** {plant_info['observations']}")
+                                
+                                # Additional info
+                                info_items = []
+                                if plant_info.get('vegetable'):
+                                    info_items.append("🥕 Vegetable")
+                                if plant_info.get('edible'):
+                                    info_items.append("🍴 Edible")
+                                if plant_info.get('duration'):
+                                    info_items.append(f"⏳ {plant_info['duration']}")
+                                
+                                if info_items:
+                                    st.markdown("**Characteristics:** " + " • ".join(info_items))
+                                
+                                # Author and Year
+                                if plant_info.get('author') or plant_info.get('year'):
+                                    auth_text = ""
+                                    if plant_info.get('author'):
+                                        auth_text += f"By: `{plant_info['author']}`  "
+                                    if plant_info.get('year'):
+                                        auth_text += f"Year: `{plant_info['year']}`"
+                                    st.markdown(f"<small>{auth_text}</small>", unsafe_allow_html=True)
+                            
+                            with col2:
+                                # Environmental Requirements
+                                st.markdown("### 🌡️ Environmental Requirements")
+                                
+                                # Show source
+                                st.markdown(f"""
+                                <div style="font-size: 0.8rem; color: #666; margin-bottom: 10px;">
+                                    Data from: <a href="https://open.plantbook.io" target="_blank" style="text-decoration: none; color: #2196F3;">PlantBook.io</a>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Light requirements
+                                if plant_info['light_lux']['min'] and plant_info['light_lux']['max']:
+                                    st.markdown(f"""
+                                    <div style="background: #fff3cd; padding: 8px 12px; border-radius: 5px; margin: 5px 0;">
+                                    <small><strong>💡 Light:</strong> {plant_info['light_lux']['min']:,} - {plant_info['light_lux']['max']:,} lux<br>
+                                    <em>({plant_info['light_mmol']['min']:,} - {plant_info['light_mmol']['max']:,} µmol/m²/s)</em></small>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Temperature
+                                if plant_info['temperature']['min'] and plant_info['temperature']['max']:
+                                    st.markdown(f"""
+                                    <div style="background: #d1ecf1; padding: 8px 12px; border-radius: 5px; margin: 5px 0;">
+                                    <small><strong>🌡️ Temperature:</strong> {plant_info['temperature']['min']} - {plant_info['temperature']['max']}°C</small>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Humidity
+                                if plant_info['humidity']['min'] and plant_info['humidity']['max']:
+                                    st.markdown(f"""
+                                    <div style="background: #d4edda; padding: 8px 12px; border-radius: 5px; margin: 5px 0;">
+                                    <small><strong>💧 Humidity:</strong> {plant_info['humidity']['min']} - {plant_info['humidity']['max']}%</small>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Soil Moisture
+                                if plant_info['soil_moisture']['min'] and plant_info['soil_moisture']['max']:
+                                    st.markdown(f"""
+                                    <div style="background: #f8d7da; padding: 8px 12px; border-radius: 5px; margin: 5px 0;">
+                                    <small><strong>🌱 Soil Moisture:</strong> {plant_info['soil_moisture']['min']} - {plant_info['soil_moisture']['max']}%</small>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # Soil EC
+                                if plant_info['soil_ec']['min'] and plant_info['soil_ec']['max']:
+                                    st.markdown(f"""
+                                    <div style="background: #e2e3e5; padding: 8px 12px; border-radius: 5px; margin: 5px 0;">
+                                    <small><strong>⚡ Soil EC:</strong> {plant_info['soil_ec']['min']} - {plant_info['soil_ec']['max']} µS/cm</small>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                            
+                            # Plant image if available
+                            if plant_info.get('image_url'):
+                                st.markdown("---")
+                                st.markdown("### 🖼️ Plant Image")
+                                try:
+                                    response = requests.get(plant_info['image_url'], timeout=5)
+                                    if response.status_code == 200:
+                                        st.image(plant_info['image_url'], width=300)
+                                except:
+                                    pass
+                    
+                    else:
+                        st.info("Could not identify plant for API lookup")
+            
+        except ImportError as e:
+            st.error("Plant API service not available")
+        except Exception as e:
+            st.error(f"Error fetching plant information: {str(e)}")
     
     def run(self):
         """Run the disease detection page"""
@@ -565,6 +715,7 @@ class DiseaseDetectionPage:
             self.render_input_images()
         else:
             self.render_results()
+            self.render_plant_information()
 
 # Initialize and run disease detection page
 if __name__ == "__main__":
